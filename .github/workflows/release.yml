@@ -1,0 +1,62 @@
+name: plugin-release
+
+on:
+  push:
+    tags:
+      - '*'
+    branches:
+      - main
+permissions:
+  contents: write
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.18
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Fetch all tags
+        run: git fetch --force --tags
+
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+          if [ -f Gopkg.toml ]; then
+              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+              dep ensure
+          fi
+
+      - name: Build
+        run: make build
+
+  goreleaser:
+    runs-on: ubuntu-latest
+
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      -
+        name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+      -
+        name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --rm-dist
+          workdir: ./cmd/vault-plugin-secrets-waypoint
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
